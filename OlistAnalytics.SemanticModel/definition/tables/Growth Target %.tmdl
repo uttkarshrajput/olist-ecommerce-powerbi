@@ -1,0 +1,23 @@
+/// What-if: revenue growth target over the prior year.
+table 'Growth Target %'
+	lineageTag: 2373d909-e72c-4d7c-9648-b10cd1179a9a
+
+	measure 'Growth Target Value' = SELECTEDVALUE ( 'Growth Target %'[Growth Target %], 0.2 )
+		formatString: 0%
+		lineageTag: ffdad12b-56d3-4916-a53c-c9aa35398d4e
+
+	column 'Growth Target %'
+		formatString: 0%
+		lineageTag: 5526ed0a-c1f8-4f6a-a106-551732c1901d
+		summarizeBy: none
+		sourceColumn: [Value]
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 0
+				}
+
+	partition 'Growth Target %' = calculated
+		mode: import
+		source = GENERATESERIES ( 0, 0.5, 0.05 )
+

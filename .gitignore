@@ -1,0 +1,8 @@
+# Power BI Desktop local files (per machine, not part of the project definition)
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+
+# OS / editor noise
+Thumbs.db
+.DS_Store
+~$*

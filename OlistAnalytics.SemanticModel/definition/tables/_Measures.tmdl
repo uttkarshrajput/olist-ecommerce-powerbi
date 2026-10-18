@@ -1,0 +1,606 @@
+/// Home table for all report measures, organised in numbered display folders.
+table _Measures
+	lineageTag: 73601a80-e55d-43b4-9b13-3efe6a3d9e86
+
+	/// Product revenue: sum of item prices, excluding freight. Cancelled and unavailable orders are already excluded from Sales.
+	measure Revenue = SUM ( Sales[Price] )
+		formatString: \R\$ #,0
+		displayFolder: 1. Sales
+		lineageTag: 69689839-cdfd-4158-a1b0-8794e8638a47
+
+	/// Freight charged to customers.
+	measure Freight = SUM ( Sales[Freight] )
+		formatString: \R\$ #,0
+		displayFolder: 1. Sales
+		lineageTag: 614214db-2d72-453c-9f61-da63919e7076
+
+	/// Gross Merchandise Value = revenue + freight.
+	measure GMV = [Revenue] + [Freight]
+		formatString: \R\$ #,0
+		displayFolder: 1. Sales
+		lineageTag: 3b5222cb-77c4-40c9-95a2-e45173ac8b62
+
+	/// Number of distinct orders with at least one valid item.
+	measure Orders = DISTINCTCOUNT ( Sales[Order Key] )
+		formatString: #,0
+		displayFolder: 1. Sales
+		lineageTag: 21e467cb-1f9a-4093-94d3-c4f2dbe44f9c
+
+	measure 'Items Sold' = COUNTROWS ( Sales )
+		formatString: #,0
+		displayFolder: 1. Sales
+		lineageTag: 0a91ceb0-c244-4cba-8cf5-a78ae95d974e
+
+	/// Distinct buying customers (customer_unique_id).
+	measure Customers = DISTINCTCOUNT ( Sales[Customer ID] )
+		formatString: #,0
+		displayFolder: 1. Sales
+		lineageTag: dddcb161-0700-42c2-941d-6a58a48c1961
+
+	/// Average Order Value.
+	measure AOV = DIVIDE ( [Revenue], [Orders] )
+		formatString: \R\$ #,0.00
+		displayFolder: 1. Sales
+		lineageTag: 97de382b-9abb-4795-b98c-996026b1c732
+
+	measure 'Items per Order' = DIVIDE ( [Items Sold], [Orders] )
+		formatString: 0.00
+		displayFolder: 1. Sales
+		lineageTag: b855de66-3e95-4425-a073-f48d36bbbc5b
+
+	measure 'Avg Item Price' = DIVIDE ( [Revenue], [Items Sold] )
+		formatString: \R\$ #,0.00
+		displayFolder: 1. Sales
+		lineageTag: 6f29cb7d-8390-44ec-9dc7-6270149d5f43
+
+	measure 'Revenue per Customer' = DIVIDE ( [Revenue], [Customers] )
+		formatString: \R\$ #,0.00
+		displayFolder: 1. Sales
+		lineageTag: 3582711d-d572-44e1-9bc8-92ae934d1e23
+
+	measure 'Freight % of Revenue' = DIVIDE ( [Freight], [Revenue] )
+		formatString: 0.0%
+		displayFolder: 1. Sales
+		lineageTag: bbf36dcd-d5f7-48df-b93b-75f0eb7b5f81
+
+	/// Share of the total currently visible in the visual.
+	measure 'Revenue Share %' = DIVIDE ( [Revenue], CALCULATE ( [Revenue], ALLSELECTED () ) )
+		formatString: 0.0%
+		displayFolder: 1. Sales
+		lineageTag: 9e0254d6-659a-4ad3-8c24-4b8362199f70
+
+	/// Same period last year, limited to dates that have sales so a partial year is compared fairly.
+	measure 'Revenue PY' =
+			CALCULATE (
+				[Revenue],
+				CALCULATETABLE ( SAMEPERIODLASTYEAR ( 'Date'[Date] ), 'Date'[Date With Sales] = TRUE )
+			)
+		formatString: \R\$ #,0
+		displayFolder: 2. Time Intelligence
+		lineageTag: 6ec5ab5b-8b26-4321-9b05-780e5bfb12b5
+
+	measure 'Revenue YoY' =
+			VAR _PY = [Revenue PY]
+			RETURN
+				IF ( NOT ISBLANK ( _PY ), [Revenue] - _PY )
+		formatString: \R\$ #,0
+		displayFolder: 2. Time Intelligence
+		lineageTag: 1741808e-32d9-4fad-81ec-b6133e87c545
+
+	measure 'Revenue YoY %' =
+			VAR _PY = [Revenue PY]
+			RETURN
+				DIVIDE ( [Revenue] - _PY, _PY )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 2. Time Intelligence
+		lineageTag: 01e841de-335d-4a19-8b3b-c286d92c4bc0
+
+	measure 'Revenue PM' = CALCULATE ( [Revenue], DATEADD ( 'Date'[Date], -1, MONTH ) )
+		formatString: \R\$ #,0
+		displayFolder: 2. Time Intelligence
+		lineageTag: 9d5b92e3-e463-4833-abce-7db9b543cc4b
+
+	measure 'Revenue MoM %' =
+			VAR _PM = [Revenue PM]
+			RETURN
+				DIVIDE ( [Revenue] - _PM, _PM )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 2. Time Intelligence
+		lineageTag: 27bbaccc-3a40-4b9e-9cda-97cd1cd24706
+
+	measure 'Revenue YTD' = CALCULATE ( [Revenue], DATESYTD ( 'Date'[Date] ) )
+		formatString: \R\$ #,0
+		displayFolder: 2. Time Intelligence
+		lineageTag: cbe08e52-c87b-4050-999d-6db32b3d5e8f
+
+	measure 'Revenue PYTD' =
+			CALCULATE (
+				[Revenue YTD],
+				CALCULATETABLE ( SAMEPERIODLASTYEAR ( 'Date'[Date] ), 'Date'[Date With Sales] = TRUE )
+			)
+		formatString: \R\$ #,0
+		displayFolder: 2. Time Intelligence
+		lineageTag: b3c4f876-e8db-4b8b-9ec9-dd4ed15a4754
+
+	measure 'Revenue YTD YoY %' =
+			VAR _PYTD = [Revenue PYTD]
+			RETURN
+				DIVIDE ( [Revenue YTD] - _PYTD, _PYTD )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 2. Time Intelligence
+		lineageTag: daa50a7b-2adc-4f70-a6de-8d46d2e12663
+
+	/// Revenue of the last 3 months ending at the latest date in the current filter context.
+	measure 'Revenue Rolling 3M' =
+			CALCULATE (
+				[Revenue],
+				DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -3, MONTH )
+			)
+		formatString: \R\$ #,0
+		displayFolder: 2. Time Intelligence
+		lineageTag: 0cc6064f-d93d-4be4-940b-39d5cc7ea97f
+
+	/// Average monthly revenue across the last 3 months (smooths the Black Friday spike).
+	measure 'Revenue 3M Moving Avg' =
+			IF (
+				NOT ISBLANK ( [Revenue] ),
+				CALCULATE (
+					AVERAGEX ( VALUES ( 'Date'[Year Month Key] ), [Revenue] ),
+					DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -3, MONTH )
+				)
+			)
+		formatString: \R\$ #,0
+		displayFolder: 2. Time Intelligence
+		lineageTag: 64141b3d-e092-483c-82a4-dc636752b685
+
+	measure 'Orders PY' =
+			CALCULATE (
+				[Orders],
+				CALCULATETABLE ( SAMEPERIODLASTYEAR ( 'Date'[Date] ), 'Date'[Date With Sales] = TRUE )
+			)
+		formatString: #,0
+		displayFolder: 2. Time Intelligence
+		lineageTag: 35e2709a-f54b-47bc-b956-55c8e5b59b9b
+
+	/// Uses the Time Intelligence calculation group from inside a measure.
+	measure 'Orders YoY %' = CALCULATE ( [Orders], 'Time Intelligence'[Time Calculation] = "YoY %" )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 2. Time Intelligence
+		lineageTag: b497eb96-7d14-4938-9596-551197521ac8
+
+	measure 'Customers YoY %' = CALCULATE ( [Customers], 'Time Intelligence'[Time Calculation] = "YoY %" )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 2. Time Intelligence
+		lineageTag: ba949dbd-7212-4638-81ba-2791b2eda1a4
+
+	measure 'AOV YoY %' = CALCULATE ( [AOV], 'Time Intelligence'[Time Calculation] = "YoY %" )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 2. Time Intelligence
+		lineageTag: a59f0ea4-5bd0-458d-b171-8d906324d836
+
+	measure 'Avg Review Score YoY' = CALCULATE ( [Avg Review Score], 'Time Intelligence'[Time Calculation] = "YoY" )
+		formatString: +0.00;-0.00;0.00
+		displayFolder: 2. Time Intelligence
+		lineageTag: fe920a87-f706-4d82-b17b-651f4908eb54
+
+	measure 'On-Time Delivery % YoY' = CALCULATE ( [On-Time Delivery %], 'Time Intelligence'[Time Calculation] = "YoY" )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 2. Time Intelligence
+		lineageTag: 114d9ced-2962-4e6e-bfce-508ca608d19f
+
+	/// Customers whose first-ever purchase falls inside the selected period.
+	measure 'New Customers' =
+			VAR _FirstDate = MIN ( 'Date'[Date] )
+			VAR _CustomersNow = VALUES ( Sales[Customer ID] )
+			VAR _CustomersBefore =
+				CALCULATETABLE (
+					VALUES ( Sales[Customer ID] ),
+					REMOVEFILTERS ( 'Date' ),
+					'Date'[Date] < _FirstDate
+				)
+			RETURN
+				COUNTROWS ( EXCEPT ( _CustomersNow, _CustomersBefore ) )
+		formatString: #,0
+		displayFolder: 3. Customers
+		lineageTag: 48312704-6e52-442f-a2a3-0774b86916d4
+
+	measure 'Returning Customers' = [Customers] - [New Customers]
+		formatString: #,0
+		displayFolder: 3. Customers
+		lineageTag: 08b970c9-6b56-4f8d-ba5d-748689066b10
+
+	measure 'New Customer %' = DIVIDE ( [New Customers], [Customers] )
+		formatString: 0.0%
+		displayFolder: 3. Customers
+		lineageTag: 5f9f1739-7778-40fb-a506-509bf4782eca
+
+	/// Customers with more than one order in the current filter context.
+	measure 'Repeat Customers' =
+			COUNTROWS (
+				FILTER (
+					VALUES ( Sales[Customer ID] ),
+					CALCULATE ( DISTINCTCOUNT ( Sales[Order Key] ) ) > 1
+				)
+			)
+		formatString: #,0
+		displayFolder: 3. Customers
+		lineageTag: c280a269-55db-4749-b30d-460d62cd0801
+
+	measure 'Repeat Customer Rate' = DIVIDE ( [Repeat Customers], [Customers] )
+		formatString: 0.0%
+		displayFolder: 3. Customers
+		lineageTag: a42c2522-02f1-41d3-b1a0-88a373f635f3
+
+	/// Orders is not related to Product or Seller. TREATAS passes the order keys visible in Sales to Orders (a virtual relationship), so delivery and review measures also work by category and seller.
+	measure 'Delivered Orders' =
+			CALCULATE (
+				COUNTROWS ( Orders ),
+				KEEPFILTERS ( Orders[Delivery Status] IN { "On Time", "Late" } ),
+				TREATAS ( VALUES ( Sales[Order Key] ), Orders[Order Key] )
+			)
+		formatString: #,0
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 0d655c0d-dec5-4142-8c82-21d298b3b8b3
+
+	measure 'Late Orders' =
+			CALCULATE (
+				COUNTROWS ( Orders ),
+				KEEPFILTERS ( Orders[Delivery Status] = "Late" ),
+				TREATAS ( VALUES ( Sales[Order Key] ), Orders[Order Key] )
+			)
+		formatString: #,0
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 75dbb169-b8bd-4f64-a669-24869869dcb2
+
+	measure 'On-Time Delivery %' = DIVIDE ( [Delivered Orders] - [Late Orders], [Delivered Orders] )
+		formatString: 0.0%
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 2af95993-e469-483c-9eb0-645fe688caa0
+
+	measure 'Late Delivery %' = DIVIDE ( [Late Orders], [Delivered Orders] )
+		formatString: 0.0%
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: d2332e39-7eae-486e-b3ea-a119498c9f41
+
+	/// Days from purchase to delivery to the customer.
+	measure 'Avg Delivery Days' =
+			CALCULATE (
+				AVERAGE ( Orders[Delivery Days] ),
+				TREATAS ( VALUES ( Sales[Order Key] ), Orders[Order Key] )
+			)
+		formatString: 0.0
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: a459301b-9d39-43c2-a65c-4b21378002d6
+
+	/// How late late orders were, in days past the promised date.
+	measure 'Avg Days Late' =
+			CALCULATE (
+				AVERAGE ( Orders[Days Late] ),
+				KEEPFILTERS ( Orders[Delivery Status] = "Late" ),
+				TREATAS ( VALUES ( Sales[Order Key] ), Orders[Order Key] )
+			)
+		formatString: 0.0
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 700cc779-091a-45de-9fa5-7cbd9b0af778
+
+	/// Plain order-level average used by the Key Influencers visual (no bridge, so it is fast at Order ID grain).
+	measure 'Review Score (Order Level)' = AVERAGE ( Orders[Review Score] )
+		formatString: 0.00
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 160815b6-552e-4ec9-bd4a-fa503ea3abe9
+
+	measure 'Reviewed Orders' =
+			CALCULATE (
+				COUNT ( Orders[Review Score] ),
+				TREATAS ( VALUES ( Sales[Order Key] ), Orders[Order Key] )
+			)
+		formatString: #,0
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 5d3a31f1-0af7-4a61-8808-8e8504bd139c
+
+	measure 'Avg Review Score' =
+			CALCULATE (
+				AVERAGE ( Orders[Review Score] ),
+				TREATAS ( VALUES ( Sales[Order Key] ), Orders[Order Key] )
+			)
+		formatString: 0.00
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 62c65881-1727-45b1-b91c-55c6cd9ccd76
+
+	measure 'Negative Review %' =
+			DIVIDE (
+				CALCULATE ( [Reviewed Orders], KEEPFILTERS ( Orders[Review Band] = "Negative (1-2)" ) ),
+				[Reviewed Orders]
+			)
+		formatString: 0.0%
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 146cda67-761a-4f1f-b7aa-dd9bdddd3925
+
+	measure 'Review Score (On Time)' = CALCULATE ( [Avg Review Score], KEEPFILTERS ( Orders[Delivery Status] = "On Time" ) )
+		formatString: 0.00
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 364590c1-7503-4d08-af14-e0b44240cb42
+
+	measure 'Review Score (Late)' = CALCULATE ( [Avg Review Score], KEEPFILTERS ( Orders[Delivery Status] = "Late" ) )
+		formatString: 0.00
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 2f2586ce-7e6a-4bd0-8335-a9ec2e9956ea
+
+	measure 'Review Gap (On Time vs Late)' = [Review Score (On Time)] - [Review Score (Late)]
+		formatString: 0.00
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 41f9809d-8e13-4e0b-8f28-d9827d9381fc
+
+	/// All orders placed, including cancelled ones (not bridged through Sales).
+	measure 'All Orders' = COUNTROWS ( Orders )
+		formatString: #,0
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 2279275e-6269-4e8e-9e89-ab11c4945305
+
+	measure 'Canceled Orders' = CALCULATE ( COUNTROWS ( Orders ), KEEPFILTERS ( Orders[Order Status] = "Canceled" ) )
+		formatString: #,0
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 3b3e9f0d-6267-443d-a1f7-d9588b9ed674
+
+	measure 'Cancellation Rate %' = DIVIDE ( [Canceled Orders], [All Orders] )
+		formatString: 0.00%
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 8aea359e-fc49-498c-82df-427ee8f5e1f2
+
+	/// Activates the inactive Orders[Delivered Date] relationship to count orders by the day they arrived.
+	measure 'Orders Delivered (by Delivery Date)' =
+			CALCULATE (
+				COUNTROWS ( Orders ),
+				USERELATIONSHIP ( Orders[Delivered Date], 'Date'[Date] )
+			)
+		formatString: #,0
+		displayFolder: 4. Delivery & Reviews
+		lineageTag: 6d2fa39c-799a-47eb-9ccd-867277b08630
+
+	measure 'Category Rank' =
+			IF (
+				ISINSCOPE ( 'Product'[Category] ),
+				RANKX ( ALLSELECTED ( 'Product'[Category Group], 'Product'[Category] ), [Revenue], , DESC, DENSE )
+			)
+		formatString: 0
+		displayFolder: 5. Ranking & Top N
+		lineageTag: 4110f749-db87-4679-99ef-e96c03ec0d68
+
+	measure 'Seller Rank' =
+			IF (
+				ISINSCOPE ( Seller[Seller Code] ),
+				RANKX ( ALLSELECTED ( Seller ), [Revenue], , DESC, DENSE )
+			)
+		formatString: 0
+		displayFolder: 5. Ranking & Top N
+		lineageTag: c97b7c71-50ed-44ca-a6de-4613e22fdc96
+
+	/// Used on the drill-through page: share of all-category revenue.
+	measure 'Category Share of Revenue' = DIVIDE ( [Revenue], CALCULATE ( [Revenue], REMOVEFILTERS ( 'Product' ) ) )
+		formatString: 0.0%
+		displayFolder: 5. Ranking & Top N
+		lineageTag: 0c7d510d-6309-4b4e-9cd6-bfce60738f23
+
+	/// Rank of the selected category among all categories (ignores the drill-through filter).
+	measure 'Category Rank (All)' =
+			IF (
+				HASONEVALUE ( 'Product'[Category] ),
+				RANKX ( ALL ( 'Product'[Category] ), [Revenue], , DESC, DENSE )
+			)
+		formatString: 0
+		displayFolder: 5. Ranking & Top N
+		lineageTag: 61b78189-a568-4368-9f48-945ca55696ff
+
+	/// Revenue only for categories ranked within the Top N slider value; other bars go blank.
+	measure 'Revenue (Top N Categories)' =
+			VAR _N = [Top N Value]
+			VAR _Rank = [Category Rank]
+			RETURN
+				IF ( NOT ISBLANK ( _Rank ) && _Rank <= _N, [Revenue] )
+		formatString: \R\$ #,0
+		displayFolder: 5. Ranking & Top N
+		lineageTag: df616bcd-c2b1-4243-a4fc-59350645ecc9
+
+	measure 'Top N Categories Share %' =
+			VAR _N = [Top N Value]
+			VAR _TopCategories = TOPN ( _N, ALLSELECTED ( 'Product'[Category] ), [Revenue], DESC )
+			RETURN
+				DIVIDE (
+					CALCULATE ( [Revenue], _TopCategories ),
+					CALCULATE ( [Revenue], ALLSELECTED ( 'Product'[Category] ) )
+				)
+		formatString: 0.0%
+		displayFolder: 5. Ranking & Top N
+		lineageTag: 7856c759-619c-4289-b620-fe0d87b8c3ee
+
+	/// Pareto: running share of revenue when sellers are sorted from largest to smallest.
+	measure 'Seller Cumulative Revenue %' =
+			VAR _Current = [Revenue]
+			VAR _Sellers = ADDCOLUMNS ( ALLSELECTED ( Seller[Seller Code] ), "@Revenue", [Revenue] )
+			VAR _Running = SUMX ( FILTER ( _Sellers, [@Revenue] >= _Current ), [@Revenue] )
+			RETURN
+				IF ( ISINSCOPE ( Seller[Seller Code] ) && NOT ISBLANK ( _Current ), DIVIDE ( _Running, SUMX ( _Sellers, [@Revenue] ) ) )
+		formatString: 0.0%
+		displayFolder: 5. Ranking & Top N
+		lineageTag: 5e64d1bc-7bee-40f3-9868-8f52c2205cc3
+
+	/// Share of revenue earned by the top 20% of sellers (Pareto check).
+	measure 'Top 20% Sellers Share %' =
+			VAR _Sellers =
+				FILTER (
+					ADDCOLUMNS ( ALLSELECTED ( Seller[Seller Code] ), "@Revenue", [Revenue] ),
+					[@Revenue] > 0
+				)
+			VAR _TopCount = ROUNDUP ( COUNTROWS ( _Sellers ) * 0.2, 0 )
+			VAR _Top = TOPN ( _TopCount, _Sellers, [@Revenue], DESC )
+			RETURN
+				DIVIDE ( SUMX ( _Top, [@Revenue] ), SUMX ( _Sellers, [@Revenue] ) )
+		formatString: 0.0%
+		displayFolder: 5. Ranking & Top N
+		lineageTag: 5698620c-f3bd-4ec5-9ab0-f05e2665f504
+
+	/// What-if: average review score if the chosen share of late orders had scored like on-time orders.
+	measure 'Projected Avg Review Score' =
+			VAR _FixShare = [Late Fix % Value]
+			VAR _LateReviewed = CALCULATE ( [Reviewed Orders], KEEPFILTERS ( Orders[Delivery Status] = "Late" ) )
+			VAR _AllReviewed = [Reviewed Orders]
+			VAR _Gap = [Review Score (On Time)] - [Review Score (Late)]
+			RETURN
+				[Avg Review Score] + DIVIDE ( _LateReviewed * _FixShare * _Gap, _AllReviewed )
+		formatString: 0.00
+		displayFolder: 6. What-If
+		lineageTag: 0116f1c2-d7a7-42fd-ae47-499a2f718c90
+
+	measure 'Review Score Uplift' = [Projected Avg Review Score] - [Avg Review Score]
+		formatString: +0.00;-0.00;0.00
+		displayFolder: 6. What-If
+		lineageTag: e9e085ce-bdbc-43a5-a440-84481c382061
+
+	measure 'Revenue Target' = [Revenue PY] * ( 1 + [Growth Target Value] )
+		formatString: \R\$ #,0
+		displayFolder: 6. What-If
+		lineageTag: 4cbde756-a52d-4bc2-a6b3-a17af5ea20dd
+
+	measure 'Target Achievement %' = DIVIDE ( [Revenue], [Revenue Target] )
+		formatString: 0.0%
+		displayFolder: 6. What-If
+		lineageTag: 57597af7-c8fb-44c1-a0bd-0fcfdab95a06
+
+	measure 'Data Through' = "Data through " & FORMAT ( CALCULATE ( MAX ( Sales[Order Date] ), REMOVEFILTERS () ), "mmm d, yyyy" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: b91a35b3-1959-47a0-9fc5-77ca7cf8a0d0
+
+	measure 'Revenue YoY Label' =
+			VAR _Delta = [Revenue YoY %]
+			RETURN
+				IF ( NOT HASONEVALUE ( 'Date'[Year] ), "Select one year for YoY", IF ( ISBLANK ( _Delta ), "No prior-year data", FORMAT ( _Delta, "▲ 0.0%;▼ 0.0%" ) & " vs PY" ) )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 61aa7025-6026-4232-8886-72f548f885b8
+
+	measure 'Orders YoY Label' =
+			VAR _Delta = [Orders YoY %]
+			RETURN
+				IF ( NOT HASONEVALUE ( 'Date'[Year] ), "Select one year for YoY", IF ( ISBLANK ( _Delta ), "No prior-year data", FORMAT ( _Delta, "▲ 0.0%;▼ 0.0%" ) & " vs PY" ) )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 337a73e3-a156-40d9-a669-9524d31c20dc
+
+	measure 'AOV YoY Label' =
+			VAR _Delta = [AOV YoY %]
+			RETURN
+				IF ( NOT HASONEVALUE ( 'Date'[Year] ), "Select one year for YoY", IF ( ISBLANK ( _Delta ), "No prior-year data", FORMAT ( _Delta, "▲ 0.0%;▼ 0.0%" ) & " vs PY" ) )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 6b0d0971-aa71-45ce-a83b-23e69f951815
+
+	measure 'Customers YoY Label' =
+			VAR _Delta = [Customers YoY %]
+			RETURN
+				IF ( NOT HASONEVALUE ( 'Date'[Year] ), "Select one year for YoY", IF ( ISBLANK ( _Delta ), "No prior-year data", FORMAT ( _Delta, "▲ 0.0%;▼ 0.0%" ) & " vs PY" ) )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: d85299bb-a6df-42ba-9358-abfb83210e6f
+
+	measure 'Review YoY Label' =
+			VAR _Delta = [Avg Review Score YoY]
+			RETURN
+				IF ( NOT HASONEVALUE ( 'Date'[Year] ), "Select one year for YoY", IF ( ISBLANK ( _Delta ), "No prior-year data", FORMAT ( _Delta, "▲ 0.00;▼ 0.00" ) & " pts vs PY" ) )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: f6330787-f150-46b5-8924-ab148cc6a40d
+
+	measure 'On-Time YoY Label' =
+			VAR _Delta = [On-Time Delivery % YoY]
+			RETURN
+				IF ( NOT HASONEVALUE ( 'Date'[Year] ), "Select one year for YoY", IF ( ISBLANK ( _Delta ), "No prior-year data", FORMAT ( _Delta * 100, "▲ 0.0;▼ 0.0" ) & " pp vs PY" ) )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 29638491-de33-4231-ab5b-7b006e0ce440
+
+	/// Hex colour used by conditional formatting: green when growing, red when shrinking.
+	measure 'Revenue YoY Color' = IF ( [Revenue YoY %] < 0, "#D64545", "#1E9E6A" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 1b105024-7d22-457d-8da5-76723551f7da
+
+	measure 'Orders YoY Color' = IF ( [Orders YoY %] < 0, "#D64545", "#1E9E6A" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: af4c0a24-34be-4c21-b687-3fa28dd93030
+
+	measure 'AOV YoY Color' = IF ( [AOV YoY %] < 0, "#D64545", "#1E9E6A" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 4853c98f-7f38-48a9-b381-7be1368390e4
+
+	measure 'Customers YoY Color' = IF ( [Customers YoY %] < 0, "#D64545", "#1E9E6A" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 0dec6800-ee49-4b68-b3bc-0fdb8bda225f
+
+	measure 'Review YoY Color' = IF ( [Avg Review Score YoY] < 0, "#D64545", "#1E9E6A" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: ac5cd59e-0ca5-483a-b024-3a57e9464f97
+
+	measure 'On-Time YoY Color' = IF ( [On-Time Delivery % YoY] < 0, "#D64545", "#1E9E6A" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 70f92252-26cc-45c0-b62b-26beeb751319
+
+	/// Red when a state's late-delivery rate is above the overall rate for the current selection.
+	measure 'Late % Bar Color' =
+			VAR _Overall = CALCULATE ( [Late Delivery %], ALLSELECTED ( Customer ) )
+			RETURN
+				IF ( [Late Delivery %] > _Overall, "#D64545", "#2F6FDE" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: a4385e36-f2ce-4969-bd6c-74a00601e27c
+
+	/// Field-parameter columns form a composite key with their hidden Fields column, so SELECTEDVALUE on them fails. SUMMARIZE over both columns is the safe pattern.
+	measure 'Selected Metric' =
+			VAR _Picked = SUMMARIZE ( 'Metric Selector', 'Metric Selector'[Metric], 'Metric Selector'[Metric Fields] )
+			RETURN
+				IF ( COUNTROWS ( _Picked ) = 1, MAXX ( _Picked, 'Metric Selector'[Metric] ), "Revenue" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: e4b51950-cad7-42a8-b7e3-4f09573f96fe
+
+	measure 'Selected Breakdown' =
+			VAR _Picked = SUMMARIZE ( 'Breakdown Selector', 'Breakdown Selector'[Breakdown], 'Breakdown Selector'[Breakdown Fields] )
+			RETURN
+				IF ( COUNTROWS ( _Picked ) = 1, MAXX ( _Picked, 'Breakdown Selector'[Breakdown] ), "Category Group" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 632ea379-2469-4e3c-924a-9803e8d0837d
+
+	measure 'Trend Title' = [Selected Metric] & " by month"
+		displayFolder: 7. Labels & Formatting
+		lineageTag: e0ef4d8f-385f-49e3-ba35-a46e426830e3
+
+	measure 'Breakdown Title' = [Selected Metric] & " by " & LOWER ( [Selected Breakdown] )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: cbd38926-cff6-470b-9c20-4c636c4cc305
+
+	measure 'Category Title' = "Category deep dive: " & SELECTEDVALUE ( 'Product'[Category], "all categories" )
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 7d82b0e6-7419-4635-ba94-a7fbe35082cb
+
+	measure 'Late Review Insight' =
+			"Late orders average " & FORMAT ( [Review Score (Late)], "0.0" ) & " stars vs "
+				& FORMAT ( [Review Score (On Time)], "0.0" ) & " when on time"
+		displayFolder: 7. Labels & Formatting
+		lineageTag: cad8d2eb-541b-42df-a571-7395513cf639
+
+	measure 'What-If Narrative' =
+			"If " & FORMAT ( [Late Fix % Value], "0%" ) & " of late orders had arrived on time, the average review would move from "
+				& FORMAT ( [Avg Review Score], "0.00" ) & " to " & FORMAT ( [Projected Avg Review Score], "0.00" ) & "."
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 60f3cc1a-92ea-4b47-9c04-1ad84e356b2e
+
+	measure 'Top N Narrative' = "Top " & [Top N Value] & " categories = " & FORMAT ( [Top N Categories Share %], "0%" ) & " of revenue"
+		displayFolder: 7. Labels & Formatting
+		lineageTag: 5abb0b83-1f90-4555-8c1a-c5b5b0880f17
+
+	column Column
+		dataType: string
+		isHidden
+		lineageTag: 250260d4-0522-499d-89ab-da418a6a7a45
+		summarizeBy: none
+		sourceColumn: Column
+
+	partition _Measures = m
+		mode: import
+		queryGroup: Measures
+		source =
+				let
+					Source = #table(type table [Column = text], {})
+				in
+					Source
+

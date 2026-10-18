@@ -1,0 +1,45 @@
+/// Field parameter: lets the report reader switch the measure shown in visuals.
+table 'Metric Selector'
+	lineageTag: 6b409167-2a10-4d4a-a8a8-26badfc3f6e8
+
+	column Metric
+		lineageTag: 02a6e621-f538-4f1d-a367-40483f69f210
+		summarizeBy: none
+		sourceColumn: [Value1]
+		sortByColumn: 'Metric Order'
+
+		relatedColumnDetails
+			groupByColumn: 'Metric Fields'
+
+	column 'Metric Fields'
+		isHidden
+		lineageTag: 63ca20d5-c0b3-46f1-a719-40a8db1b8e84
+		summarizeBy: none
+		sourceColumn: [Value2]
+		sortByColumn: 'Metric Order'
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 3,
+				  "kind": 2
+				}
+
+	column 'Metric Order'
+		isHidden
+		lineageTag: f60d22df-52a5-428a-8b60-c6d59ace950f
+		summarizeBy: none
+		sourceColumn: [Value3]
+
+	partition 'Metric Selector' = calculated
+		mode: import
+		source =
+				{
+					("Revenue", NAMEOF('_Measures'[Revenue]), 0),
+					("Orders", NAMEOF('_Measures'[Orders]), 1),
+					("Avg Order Value", NAMEOF('_Measures'[AOV]), 2),
+					("Customers", NAMEOF('_Measures'[Customers]), 3),
+					("Items Sold", NAMEOF('_Measures'[Items Sold]), 4),
+					("Avg Review Score", NAMEOF('_Measures'[Avg Review Score]), 5),
+					("Late Delivery %", NAMEOF('_Measures'[Late Delivery %]), 6)
+				}
+

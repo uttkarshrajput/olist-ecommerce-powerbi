@@ -1,0 +1,159 @@
+/// Calendar dimension built in Power Query. Covers whole years around the order dates and is marked as the model date table.
+table Date
+	lineageTag: 942fd7c9-85e7-478f-949e-1d2c790254fd
+	dataCategory: Time
+
+	column Date
+		dataType: dateTime
+		isKey
+		formatString: yyyy-mm-dd
+		lineageTag: 16c76fff-5f51-4e3d-b195-a6ec713ba041
+		summarizeBy: none
+		sourceColumn: Date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column Year
+		dataType: int64
+		formatString: 0
+		lineageTag: fdd22658-d560-4a33-aa66-e6bdd5c6e5e0
+		summarizeBy: none
+		sourceColumn: Year
+
+	column Quarter
+		dataType: string
+		lineageTag: f4a4b6a7-5a01-4f5a-b10b-30bc939be7ce
+		summarizeBy: none
+		sourceColumn: Quarter
+
+	column 'Year Quarter'
+		dataType: string
+		lineageTag: da0405d0-1b42-4d5c-970c-a55ae17c3cb0
+		summarizeBy: none
+		sourceColumn: Year Quarter
+		sortByColumn: 'Year Quarter Key'
+
+	column 'Year Quarter Key'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 7a58bb3c-2d48-4e49-be64-870b4dfffae9
+		summarizeBy: none
+		sourceColumn: Year Quarter Key
+
+	column 'Month No'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 3804344c-50c0-4cb3-9287-ad7de71be19e
+		summarizeBy: none
+		sourceColumn: Month No
+
+	column Month
+		dataType: string
+		lineageTag: 78dad793-7b23-43ab-a557-96c18fa9dd6e
+		summarizeBy: none
+		sourceColumn: Month
+		sortByColumn: 'Month No'
+
+	column 'Month Name'
+		dataType: string
+		lineageTag: 163bf2ef-5834-4e0b-b256-17795fffc35a
+		summarizeBy: none
+		sourceColumn: Month Name
+		sortByColumn: 'Month No'
+
+	column 'Year Month'
+		dataType: string
+		lineageTag: b332ce67-4293-4b71-a0f1-ad41ff54fec5
+		summarizeBy: none
+		sourceColumn: Year Month
+		sortByColumn: 'Year Month Key'
+
+	column 'Year Month Key'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: e3ffaee2-c71c-4ef4-ab4c-f9fd13ccb079
+		summarizeBy: none
+		sourceColumn: Year Month Key
+
+	column 'Month Start'
+		dataType: dateTime
+		formatString: mmm yyyy
+		lineageTag: 91a6f7b9-fef9-4263-a55d-2ae1367eaf23
+		summarizeBy: none
+		sourceColumn: Month Start
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column 'Weekday No'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: ca13b455-98ed-4c8d-8703-440445d54425
+		summarizeBy: none
+		sourceColumn: Weekday No
+
+	column Weekday
+		dataType: string
+		lineageTag: 2c4d4a8a-e884-404c-954e-d3f3c3a6d030
+		summarizeBy: none
+		sourceColumn: Weekday
+		sortByColumn: 'Weekday No'
+
+	column 'Is Weekend'
+		dataType: boolean
+		lineageTag: d1e373c7-6e69-4edd-92a9-78b612feb7dc
+		summarizeBy: none
+		sourceColumn: Is Weekend
+
+	/// TRUE up to the last order date. Time-intelligence measures use it so a partial year is compared with the same part of the prior year.
+	column 'Date With Sales' = 'Date'[Date] <= MAX ( Sales[Order Date] )
+		dataType: boolean
+		isHidden
+		lineageTag: 210863fb-cc2d-48be-9d39-4651bde87360
+		summarizeBy: none
+
+	hierarchy Calendar
+		lineageTag: e4fc0569-179e-4d57-89ee-cafad8745842
+
+		level Year
+			lineageTag: c872c211-c169-44d8-999f-17e08d6f1e1e
+			column: Year
+
+		level Quarter
+			lineageTag: 3a13926d-29bb-4aec-852f-394dfd824957
+			column: Quarter
+
+		level Month
+			lineageTag: 7a97bcb7-7121-4c11-83b8-c25c74ee98b4
+			column: Month
+
+	partition Date = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+					// Reads only the purchase timestamp column so the calendar does not re-run the whole order pipeline
+					OrderDates = List.Transform(List.RemoveNulls(fx_LoadCsv("olist_orders_dataset.csv")[order_purchase_timestamp]), each Date.From(DateTime.From(_, "en-US"))),
+					StartDate = Date.StartOfYear(List.Min(OrderDates)),
+					EndDate = Date.EndOfYear(List.Max(OrderDates)),
+					Dates = List.Dates(StartDate, Duration.Days(EndDate - StartDate) + 1, #duration(1, 0, 0, 0)),
+					ToTable = Table.FromList(Dates, Splitter.SplitByNothing(), type table [Date = date]),
+					AddedYear = Table.AddColumn(ToTable, "Year", each Date.Year([Date]), Int64.Type),
+					AddedQuarter = Table.AddColumn(AddedYear, "Quarter", each "Q" & Text.From(Date.QuarterOfYear([Date])), type text),
+					AddedYearQuarter = Table.AddColumn(AddedQuarter, "Year Quarter", each Text.From([Year]) & " " & [Quarter], type text),
+					AddedYearQuarterKey = Table.AddColumn(AddedYearQuarter, "Year Quarter Key", each [Year] * 10 + Date.QuarterOfYear([Date]), Int64.Type),
+					AddedMonthNo = Table.AddColumn(AddedYearQuarterKey, "Month No", each Date.Month([Date]), Int64.Type),
+					AddedMonth = Table.AddColumn(AddedMonthNo, "Month", each Date.ToText([Date], "MMM", "en-US"), type text),
+					AddedMonthName = Table.AddColumn(AddedMonth, "Month Name", each Date.ToText([Date], "MMMM", "en-US"), type text),
+					AddedYearMonth = Table.AddColumn(AddedMonthName, "Year Month", each Date.ToText([Date], "MMM yyyy", "en-US"), type text),
+					AddedYearMonthKey = Table.AddColumn(AddedYearMonth, "Year Month Key", each [Year] * 100 + [Month No], Int64.Type),
+					AddedMonthStart = Table.AddColumn(AddedYearMonthKey, "Month Start", each Date.StartOfMonth([Date]), type date),
+					AddedWeekdayNo = Table.AddColumn(AddedMonthStart, "Weekday No", each Date.DayOfWeek([Date], Day.Monday) + 1, Int64.Type),
+					AddedWeekday = Table.AddColumn(AddedWeekdayNo, "Weekday", each Date.ToText([Date], "ddd", "en-US"), type text),
+					AddedIsWeekend = Table.AddColumn(AddedWeekday, "Is Weekend", each [Weekday No] >= 6, type logical)
+				in
+					AddedIsWeekend
+

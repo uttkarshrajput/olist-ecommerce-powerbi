@@ -1,0 +1,8 @@
+/// Static RLS example: customers in the Southeast region only.
+role 'Southeast Region'
+	modelPermission: read
+
+	tablePermission Customer = [Region] = "Southeast"
+
+	annotation PBI_Id = a85caafce12c40bfb85ce96835a3ddf9
+

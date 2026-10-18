@@ -1,0 +1,78 @@
+/// Calculation group: applies time logic to any measure in the allow-list (Revenue, Orders, AOV, ...).
+table 'Time Intelligence'
+	lineageTag: 5f1a2063-7071-45a4-8c8e-b5a891a449ab
+
+	calculationGroup
+		precedence: 10
+
+		calculationItem Actual = SELECTEDMEASURE ()
+
+		calculationItem PY =
+				IF (
+					ISSELECTEDMEASURE ( [Revenue], [GMV], [Freight], [Orders], [Items Sold], [Customers], [AOV], [Avg Review Score], [On-Time Delivery %], [Late Delivery %], [New Customers] ),
+						CALCULATE ( SELECTEDMEASURE (), CALCULATETABLE ( SAMEPERIODLASTYEAR ( 'Date'[Date] ), 'Date'[Date With Sales] = TRUE ) ),
+					SELECTEDMEASURE ()
+				)
+
+		calculationItem YoY =
+				VAR _PY =
+					CALCULATE ( SELECTEDMEASURE (), CALCULATETABLE ( SAMEPERIODLASTYEAR ( 'Date'[Date] ), 'Date'[Date With Sales] = TRUE ) )
+				RETURN
+					IF (
+						ISSELECTEDMEASURE ( [Revenue], [GMV], [Freight], [Orders], [Items Sold], [Customers], [AOV], [Avg Review Score], [On-Time Delivery %], [Late Delivery %], [New Customers] ),
+							IF ( NOT ISBLANK ( _PY ), SELECTEDMEASURE () - _PY ),
+						SELECTEDMEASURE ()
+					)
+
+		calculationItem 'YoY %' =
+				VAR _PY =
+					CALCULATE ( SELECTEDMEASURE (), CALCULATETABLE ( SAMEPERIODLASTYEAR ( 'Date'[Date] ), 'Date'[Date With Sales] = TRUE ) )
+				RETURN
+					IF (
+						ISSELECTEDMEASURE ( [Revenue], [GMV], [Freight], [Orders], [Items Sold], [Customers], [AOV], [Avg Review Score], [On-Time Delivery %], [Late Delivery %], [New Customers] ),
+							DIVIDE ( SELECTEDMEASURE () - _PY, _PY ),
+						SELECTEDMEASURE ()
+					)
+
+			formatStringDefinition =
+					IF (
+						ISSELECTEDMEASURE ( [Revenue], [GMV], [Freight], [Orders], [Items Sold], [Customers], [AOV], [Avg Review Score], [On-Time Delivery %], [Late Delivery %], [New Customers] ),
+						"+0.0%;-0.0%;0.0%",
+						SELECTEDMEASUREFORMATSTRING ()
+					)
+
+		calculationItem YTD =
+				IF (
+					ISSELECTEDMEASURE ( [Revenue], [GMV], [Freight], [Orders], [Items Sold], [Customers], [AOV], [Avg Review Score], [On-Time Delivery %], [Late Delivery %], [New Customers] ),
+						CALCULATE ( SELECTEDMEASURE (), DATESYTD ( 'Date'[Date] ) ),
+					SELECTEDMEASURE ()
+				)
+
+		calculationItem PYTD =
+				IF (
+					ISSELECTEDMEASURE ( [Revenue], [GMV], [Freight], [Orders], [Items Sold], [Customers], [AOV], [Avg Review Score], [On-Time Delivery %], [Late Delivery %], [New Customers] ),
+						CALCULATE ( SELECTEDMEASURE (), DATESYTD ( CALCULATETABLE ( SAMEPERIODLASTYEAR ( 'Date'[Date] ), 'Date'[Date With Sales] = TRUE ) ) ),
+					SELECTEDMEASURE ()
+				)
+
+		calculationItem 'Last 3 Months' =
+				IF (
+					ISSELECTEDMEASURE ( [Revenue], [GMV], [Freight], [Orders], [Items Sold], [Customers], [AOV], [Avg Review Score], [On-Time Delivery %], [Late Delivery %], [New Customers] ),
+						CALCULATE ( SELECTEDMEASURE (), DATESINPERIOD ( 'Date'[Date], MAX ( 'Date'[Date] ), -3, MONTH ) ),
+					SELECTEDMEASURE ()
+				)
+
+	column 'Time Calculation'
+		dataType: string
+		lineageTag: 3c7f3d11-7970-4ae9-8106-3a888e0e7680
+		summarizeBy: none
+		sourceColumn: Name
+		sortByColumn: Ordinal
+
+	column Ordinal
+		dataType: int64
+		isHidden
+		lineageTag: 68bd9f91-4586-4db5-bfa1-ae3d2ce09a4d
+		summarizeBy: none
+		sourceColumn: Ordinal
+

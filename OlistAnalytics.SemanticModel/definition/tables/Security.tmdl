@@ -1,0 +1,40 @@
+/// Maps user e-mails to the customer region they may see. Used by the dynamic RLS role (demo addresses).
+table Security
+	isHidden
+	lineageTag: 6236befe-89b8-4647-81f0-d15c99ad6fd0
+
+	column 'User Email'
+		dataType: string
+		lineageTag: b7bc1d7e-cf89-4738-b6e4-adcf527ad7af
+		summarizeBy: none
+		sourceColumn: User Email
+
+	column Region
+		dataType: string
+		lineageTag: 43c9e6e8-c188-4221-9587-d4a241ace5fe
+		summarizeBy: none
+		sourceColumn: Region
+
+	partition Security = m
+		mode: import
+		queryGroup: Security
+		source =
+				let
+					Source = #table(
+						type table [#"User Email" = text, Region = text],
+						{
+							{"southeast.manager@olist-demo.com", "Southeast"},
+							{"south.manager@olist-demo.com", "South"},
+							{"northeast.manager@olist-demo.com", "Northeast"},
+							{"north.manager@olist-demo.com", "North"},
+							{"centralwest.manager@olist-demo.com", "Central-West"},
+							{"national.director@olist-demo.com", "Southeast"},
+							{"national.director@olist-demo.com", "South"},
+							{"national.director@olist-demo.com", "Northeast"},
+							{"national.director@olist-demo.com", "North"},
+							{"national.director@olist-demo.com", "Central-West"}
+						}
+					)
+				in
+					Source
+

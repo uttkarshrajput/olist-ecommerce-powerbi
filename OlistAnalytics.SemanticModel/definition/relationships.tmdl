@@ -1,0 +1,29 @@
+relationship Sales_OrderDate_Date
+	fromColumn: Sales.'Order Date'
+	toColumn: Date.Date
+
+relationship Sales_Customer
+	fromColumn: Sales.'Customer ID'
+	toColumn: Customer.'Customer ID'
+
+relationship Sales_Product
+	fromColumn: Sales.'Product Key'
+	toColumn: Product.'Product Key'
+
+relationship Sales_Seller
+	fromColumn: Sales.'Seller Key'
+	toColumn: Seller.'Seller Key'
+
+relationship Orders_OrderDate_Date
+	fromColumn: Orders.'Order Date'
+	toColumn: Date.Date
+
+relationship Orders_Customer
+	fromColumn: Orders.'Customer ID'
+	toColumn: Customer.'Customer ID'
+
+relationship Orders_DeliveredDate_Date
+	isActive: false
+	fromColumn: Orders.'Delivered Date'
+	toColumn: Date.Date
+

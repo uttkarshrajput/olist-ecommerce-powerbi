@@ -1,0 +1,180 @@
+/// Fact table at order grain: delivery performance, payment and review per order (includes cancelled orders).
+table Orders
+	lineageTag: 2bc0a356-031d-48d9-b52b-ffe601531b81
+
+	column 'Order Key'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: eaa31e0e-8ebb-41e9-9f45-7cff96226670
+		summarizeBy: none
+		sourceColumn: Order Key
+
+	column 'Order ID'
+		dataType: string
+		lineageTag: 63af784a-d6bc-422b-9710-3a8d84d003f8
+		summarizeBy: none
+		sourceColumn: Order ID
+
+	column 'Order Date'
+		dataType: dateTime
+		isHidden
+		formatString: yyyy-mm-dd
+		lineageTag: a53d6a62-ee62-48d4-979a-0211ee566614
+		summarizeBy: none
+		sourceColumn: Order Date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column 'Delivered Date'
+		dataType: dateTime
+		isHidden
+		formatString: yyyy-mm-dd
+		lineageTag: 770814df-c49a-485c-bacd-38f22985ae24
+		summarizeBy: none
+		sourceColumn: Delivered Date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column 'Estimated Date'
+		dataType: dateTime
+		isHidden
+		formatString: yyyy-mm-dd
+		lineageTag: ca207cbb-6a44-4782-8de3-8416b457c87e
+		summarizeBy: none
+		sourceColumn: Estimated Date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column 'Customer ID'
+		dataType: string
+		isHidden
+		lineageTag: 8d74a5af-de73-4038-9cd0-ca42375d2a9a
+		summarizeBy: none
+		sourceColumn: Customer ID
+
+	column 'Order Status'
+		dataType: string
+		lineageTag: a121dc00-0b38-43f1-87fb-693fb544245a
+		summarizeBy: none
+		sourceColumn: Order Status
+
+	column 'Delivery Status'
+		dataType: string
+		lineageTag: 45b50ca6-96ae-4ddc-b4f5-ba78dc3a5b96
+		summarizeBy: none
+		sourceColumn: Delivery Status
+
+	column 'Delay Bucket'
+		dataType: string
+		lineageTag: 6ce0828c-02f0-4b71-a532-cca3f0dd84a3
+		summarizeBy: none
+		sourceColumn: Delay Bucket
+		sortByColumn: 'Delay Bucket Order'
+
+	column 'Delay Bucket Order'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 2ed00ae3-3abd-48ac-8118-daaf195c277d
+		summarizeBy: none
+		sourceColumn: Delay Bucket Order
+
+	column 'Delivery Days'
+		dataType: double
+		formatString: 0.0
+		lineageTag: 59cbc1e7-fd74-4092-83ab-8208cdcef5f0
+		summarizeBy: none
+		sourceColumn: Delivery Days
+
+	column 'Days Late'
+		dataType: int64
+		formatString: 0
+		lineageTag: c8d4ae53-b82f-40eb-9ad0-eb27152ef115
+		summarizeBy: none
+		sourceColumn: Days Late
+
+	column Items
+		dataType: int64
+		formatString: 0
+		lineageTag: e1943a7f-35a9-44e7-8dc9-36a1ccddd332
+		summarizeBy: none
+		sourceColumn: Items
+
+	column 'Order Value'
+		dataType: decimal
+		formatString: \R\$ #,0.00
+		lineageTag: e095d86c-f6f5-48c8-8b77-91aa04b9f3a2
+		summarizeBy: none
+		sourceColumn: Order Value
+
+	column 'Order Freight'
+		dataType: decimal
+		formatString: \R\$ #,0.00
+		lineageTag: c8ba55f2-4437-437a-8e65-7bc88d78385e
+		summarizeBy: none
+		sourceColumn: Order Freight
+
+	column 'Payment Type'
+		dataType: string
+		lineageTag: c5e30eb1-7284-457b-a20f-3bdd557ddd17
+		summarizeBy: none
+		sourceColumn: Payment Type
+
+	column Installments
+		dataType: int64
+		formatString: 0
+		lineageTag: a1b7de3e-4899-4ae8-bbe3-c17bf83defa0
+		summarizeBy: none
+		sourceColumn: Installments
+
+	column 'Payment Value'
+		dataType: decimal
+		formatString: \R\$ #,0.00
+		lineageTag: 395b3fae-d434-4e61-ac19-95510cfba287
+		summarizeBy: none
+		sourceColumn: Payment Value
+
+	column 'Review Score'
+		dataType: double
+		formatString: 0.0
+		lineageTag: 6c1763cc-7c07-4579-ba78-3d5b7b3d1052
+		summarizeBy: none
+		sourceColumn: Review Score
+
+	column 'Review Band'
+		dataType: string
+		lineageTag: dd1752a8-b6ef-48b0-b2aa-1054911a3d4b
+		summarizeBy: none
+		sourceColumn: Review Band
+
+	column 'Has Comment'
+		dataType: boolean
+		lineageTag: ba3ea055-7c4b-449e-b563-af31b6a17019
+		summarizeBy: none
+		sourceColumn: Has Comment
+
+	partition Orders = m
+		mode: import
+		queryGroup: Facts
+		source =
+				let
+					Source = stg_Orders,
+					MergedItems = Table.NestedJoin(Source, {"order_id"}, stg_ItemsByOrder, {"order_id"}, "I", JoinKind.LeftOuter),
+					ExpandedItems = Table.ExpandTableColumn(MergedItems, "I", {"Items", "Order Value", "Order Freight"}),
+					MergedReviews = Table.NestedJoin(ExpandedItems, {"order_id"}, stg_ReviewsByOrder, {"order_id"}, "R", JoinKind.LeftOuter),
+					ExpandedReviews = Table.ExpandTableColumn(MergedReviews, "R", {"Review Score", "Has Comment"}),
+					MergedPayments = Table.NestedJoin(ExpandedReviews, {"order_id"}, stg_PaymentsByOrder, {"order_id"}, "P", JoinKind.LeftOuter),
+					ExpandedPayments = Table.ExpandTableColumn(MergedPayments, "P", {"Payment Type", "Installments", "Payment Value"}),
+					FilledPaymentType = Table.ReplaceValue(ExpandedPayments, null, "Unknown", Replacer.ReplaceValue, {"Payment Type"}),
+					AddedReviewBand = Table.AddColumn(FilledPaymentType, "Review Band", each
+						if [Review Score] = null then "No Review"
+						else if [Review Score] < 2.5 then "Negative (1-2)"
+						else if [Review Score] < 3.5 then "Neutral (3)"
+						else "Positive (4-5)", type text),
+					Renamed = Table.RenameColumns(AddedReviewBand, {{"order_id", "Order ID"}}),
+					Selected = Table.SelectColumns(Renamed, {"Order Key", "Order ID", "Order Date", "Delivered Date", "Estimated Date", "Customer ID", "Order Status", "Delivery Status", "Delay Bucket", "Delay Bucket Order", "Delivery Days", "Days Late", "Items", "Order Value", "Order Freight", "Payment Type", "Installments", "Payment Value", "Review Score", "Review Band", "Has Comment"}),
+					Typed = Table.TransformColumnTypes(Selected, {{"Order Key", Int64.Type}, {"Order Date", type date}, {"Delivered Date", type date}, {"Estimated Date", type date}, {"Delay Bucket Order", Int64.Type}, {"Delivery Days", type number}, {"Days Late", Int64.Type}, {"Items", Int64.Type}, {"Order Value", Currency.Type}, {"Order Freight", Currency.Type}, {"Installments", Int64.Type}, {"Payment Value", Currency.Type}, {"Review Score", type number}, {"Has Comment", type logical}})
+				in
+					Typed
+

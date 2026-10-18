@@ -1,0 +1,88 @@
+/// Fact table at order-line grain (one row per item sold). Cancelled and unavailable orders are excluded.
+table Sales
+	lineageTag: 39293ede-44fb-47e1-a97b-a9f0c1043c9a
+
+	column 'Order Key'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 04d00e95-c03a-489e-b496-c5c865417b15
+		summarizeBy: none
+		sourceColumn: Order Key
+
+	column 'Order Item No'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 4d174687-9983-40a0-9af5-aee5174b23a8
+		summarizeBy: none
+		sourceColumn: Order Item No
+
+	column 'Order Date'
+		dataType: dateTime
+		isHidden
+		formatString: yyyy-mm-dd
+		lineageTag: 6f55e5b4-9269-4861-90ca-f301e6b4288f
+		summarizeBy: none
+		sourceColumn: Order Date
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column 'Customer ID'
+		dataType: string
+		isHidden
+		lineageTag: a8b994f2-462f-4bb3-9fbf-fed3c13ab4db
+		summarizeBy: none
+		sourceColumn: Customer ID
+
+	column 'Product Key'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: dcbc400b-924b-412f-b907-cb7f50a7d7c1
+		summarizeBy: none
+		sourceColumn: Product Key
+
+	column 'Seller Key'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 475a357b-3864-4aee-9046-97cc328f6224
+		summarizeBy: none
+		sourceColumn: Seller Key
+
+	column Price
+		dataType: decimal
+		isHidden
+		formatString: \R\$ #,0.00
+		lineageTag: f7953ec6-daef-4e32-b737-9a141420b798
+		summarizeBy: sum
+		sourceColumn: Price
+
+	column Freight
+		dataType: decimal
+		isHidden
+		formatString: \R\$ #,0.00
+		lineageTag: 1d85ba0e-7769-4d44-89c4-d460bb2f042a
+		summarizeBy: sum
+		sourceColumn: Freight
+
+	partition Sales = m
+		mode: import
+		queryGroup: Facts
+		source =
+				let
+					Source = stg_Items,
+					ValidOrders = Table.SelectRows(stg_Orders, each not List.Contains({"canceled", "unavailable"}, [order_status])),
+					MergedOrders = Table.NestedJoin(Source, {"order_id"}, ValidOrders, {"order_id"}, "O", JoinKind.Inner),
+					ExpandedOrders = Table.ExpandTableColumn(MergedOrders, "O", {"Order Key", "Order Date", "Customer ID"}),
+					MergedProduct = Table.NestedJoin(ExpandedOrders, {"product_id"}, Product, {"Product ID"}, "P", JoinKind.LeftOuter),
+					ExpandedProduct = Table.ExpandTableColumn(MergedProduct, "P", {"Product Key"}),
+					MergedSeller = Table.NestedJoin(ExpandedProduct, {"seller_id"}, Seller, {"Seller ID"}, "S", JoinKind.LeftOuter),
+					ExpandedSeller = Table.ExpandTableColumn(MergedSeller, "S", {"Seller Key"}),
+					Renamed = Table.RenameColumns(ExpandedSeller, {{"order_item_id", "Order Item No"}, {"price", "Price"}, {"freight_value", "Freight"}}),
+					Selected = Table.SelectColumns(Renamed, {"Order Key", "Order Item No", "Order Date", "Customer ID", "Product Key", "Seller Key", "Price", "Freight"}),
+					Typed = Table.TransformColumnTypes(Selected, {{"Order Key", Int64.Type}, {"Order Item No", Int64.Type}, {"Order Date", type date}, {"Product Key", Int64.Type}, {"Seller Key", Int64.Type}, {"Price", Currency.Type}, {"Freight", Currency.Type}})
+				in
+					Typed
+

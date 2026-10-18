@@ -1,0 +1,10 @@
+/// Dynamic RLS: the signed-in user sees only the customer regions mapped to their e-mail in the Security table.
+role 'Regional Manager (Dynamic)'
+	modelPermission: read
+
+	tablePermission Customer = [Region] IN CALCULATETABLE ( VALUES ( Security[Region] ), Security[User Email] = USERPRINCIPALNAME () )
+
+	tablePermission Security = [User Email] = USERPRINCIPALNAME ()
+
+	annotation PBI_Id = 96414bc76b4e49139d0adf2da7215a34
+

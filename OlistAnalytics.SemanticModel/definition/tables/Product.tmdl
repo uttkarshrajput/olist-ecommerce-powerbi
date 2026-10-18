@@ -1,0 +1,96 @@
+/// Product dimension with English category names and a 12-value Category Group used for drill-down.
+table Product
+	lineageTag: 947fa402-dd67-4186-a94c-502fb24523d4
+
+	column 'Product Key'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: 004e05b9-2847-4cd9-a201-61763087661e
+		summarizeBy: none
+		sourceColumn: Product Key
+
+	column 'Product ID'
+		dataType: string
+		lineageTag: 6b828503-edd3-49a0-af2f-ad01f16decac
+		summarizeBy: none
+		sourceColumn: Product ID
+
+	column Category
+		dataType: string
+		lineageTag: e00d3f92-7e58-4349-9ae7-eb4377363ce0
+		summarizeBy: none
+		sourceColumn: Category
+
+	column 'Category Group'
+		dataType: string
+		lineageTag: fba25e8c-75fe-4c2c-959b-f19056a0db95
+		summarizeBy: none
+		sourceColumn: Category Group
+
+	column 'Weight Band'
+		dataType: string
+		lineageTag: c833ff92-886e-4ce7-b673-dcff369fd339
+		summarizeBy: none
+		sourceColumn: Weight Band
+		sortByColumn: 'Weight Band Order'
+
+	column 'Weight Band Order'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: be059fdd-8b79-4893-899d-bb3d1c83cc37
+		summarizeBy: none
+		sourceColumn: Weight Band Order
+
+	column 'Weight (g)'
+		dataType: double
+		formatString: #,0
+		lineageTag: bb25ec5f-aedb-4ebc-9a63-4531f8247c3c
+		summarizeBy: none
+		sourceColumn: Weight (g)
+
+	column Photos
+		dataType: int64
+		formatString: 0
+		lineageTag: c0f5ec94-c286-489f-a375-6a36ca114742
+		summarizeBy: none
+		sourceColumn: Photos
+
+	hierarchy 'Category Hierarchy'
+		lineageTag: 0f9e34e2-9c71-4004-ad63-8b70992e2db1
+
+		level 'Category Group'
+			lineageTag: 22eefc85-ff29-4d70-aa51-476e8d3b564b
+			column: 'Category Group'
+
+		level Category
+			lineageTag: 839dc40b-50c5-4df4-b9ad-4ded4a8cccf2
+			column: Category
+
+	partition Product = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+					Source = fx_LoadCsv("olist_products_dataset.csv"),
+					ChangedTypes = Table.TransformColumnTypes(Source, {{"product_id", type text}, {"product_category_name", type text}, {"product_photos_qty", Int64.Type}, {"product_weight_g", type number}}, "en-US"),
+					MergedCategory = Table.NestedJoin(ChangedTypes, {"product_category_name"}, stg_CategoryTranslation, {"product_category_name"}, "T", JoinKind.LeftOuter),
+					ExpandedCategory = Table.ExpandTableColumn(MergedCategory, "T", {"Category", "Category Group"}),
+					// 610 products have no category in the source
+					FilledCategory = Table.ReplaceValue(ExpandedCategory, null, "Uncategorized", Replacer.ReplaceValue, {"Category"}),
+					FilledGroup = Table.ReplaceValue(FilledCategory, null, "Uncategorized", Replacer.ReplaceValue, {"Category Group"}),
+					AddedWeightBand = Table.AddColumn(FilledGroup, "Weight Band", each
+						if [product_weight_g] = null then "Unknown"
+						else if [product_weight_g] < 500 then "Light (<0.5 kg)"
+						else if [product_weight_g] < 2000 then "Medium (0.5-2 kg)"
+						else if [product_weight_g] < 10000 then "Heavy (2-10 kg)"
+						else "Bulky (10 kg+)", type text),
+					AddedWeightBandOrder = Table.AddColumn(AddedWeightBand, "Weight Band Order", each List.PositionOf({"Light (<0.5 kg)", "Medium (0.5-2 kg)", "Heavy (2-10 kg)", "Bulky (10 kg+)", "Unknown"}, [Weight Band]) + 1, Int64.Type),
+					Sorted = Table.Sort(AddedWeightBandOrder, {{"product_id", Order.Ascending}}),
+					AddedKey = Table.AddIndexColumn(Sorted, "Product Key", 1, 1, Int64.Type),
+					Renamed = Table.RenameColumns(AddedKey, {{"product_id", "Product ID"}, {"product_weight_g", "Weight (g)"}, {"product_photos_qty", "Photos"}}),
+					Result = Table.SelectColumns(Renamed, {"Product Key", "Product ID", "Category", "Category Group", "Weight Band", "Weight Band Order", "Weight (g)", "Photos"})
+				in
+					Result
+

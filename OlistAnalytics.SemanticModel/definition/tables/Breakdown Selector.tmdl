@@ -1,0 +1,44 @@
+/// Field parameter: lets the report reader switch the category axis of a chart.
+table 'Breakdown Selector'
+	lineageTag: 09990461-7d3d-41a5-8c1e-2a6fdcc01bbb
+
+	column Breakdown
+		lineageTag: 5164d283-853e-4bb3-92e4-f3da7ef77d3c
+		summarizeBy: none
+		sourceColumn: [Value1]
+		sortByColumn: 'Breakdown Order'
+
+		relatedColumnDetails
+			groupByColumn: 'Breakdown Fields'
+
+	column 'Breakdown Fields'
+		isHidden
+		lineageTag: ded7d482-3f3b-49af-910b-dfe33667749f
+		summarizeBy: none
+		sourceColumn: [Value2]
+		sortByColumn: 'Breakdown Order'
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 3,
+				  "kind": 2
+				}
+
+	column 'Breakdown Order'
+		isHidden
+		lineageTag: f463d03a-caf3-4087-9ce9-2176192b5e0d
+		summarizeBy: none
+		sourceColumn: [Value3]
+
+	partition 'Breakdown Selector' = calculated
+		mode: import
+		source =
+				{
+					("Category Group", NAMEOF('Product'[Category Group]), 0),
+					("Category", NAMEOF('Product'[Category]), 1),
+					("Customer Region", NAMEOF('Customer'[Region]), 2),
+					("Customer State", NAMEOF('Customer'[State Name]), 3),
+					("Seller State", NAMEOF('Seller'[State Name]), 4),
+					("Customer Segment", NAMEOF('Customer'[Customer Segment]), 5)
+				}
+

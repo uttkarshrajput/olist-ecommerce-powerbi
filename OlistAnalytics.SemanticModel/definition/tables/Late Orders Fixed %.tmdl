@@ -1,0 +1,23 @@
+/// What-if: share of late orders assumed to arrive on time.
+table 'Late Orders Fixed %'
+	lineageTag: a9396741-a951-4315-969b-407659a22649
+
+	measure 'Late Fix % Value' = SELECTEDVALUE ( 'Late Orders Fixed %'[Late Orders Fixed %], 0.5 )
+		formatString: 0%
+		lineageTag: 65630102-3926-4fda-8bce-03db453039c3
+
+	column 'Late Orders Fixed %'
+		formatString: 0%
+		lineageTag: 4e152af8-6cfb-40d2-9678-b7fb29ce8e74
+		summarizeBy: none
+		sourceColumn: [Value]
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 0
+				}
+
+	partition 'Late Orders Fixed %' = calculated
+		mode: import
+		source = GENERATESERIES ( 0, 1, 0.05 )
+

@@ -1,0 +1,212 @@
+/// Folder that holds the raw Olist CSV files. Change this after cloning the repo.
+expression DataFolder = "C:\Users\utkrs\olist-ecommerce-powerbi\data\raw\" meta [IsParameterQuery=true, Type="Text", IsParameterQueryRequired=true]
+	lineageTag: 6013d755-318f-418e-93f5-87b7023965e8
+	queryGroup: Parameters
+
+	annotation PBI_ResultType = Text
+
+/// Reusable cleaner: trims text, turns snake_case into Title Case, returns null for blanks.
+expression fx_CleanText =
+		(txt as nullable text) as nullable text =>
+		let
+			Trimmed = if txt = null then null else Text.Trim(txt),
+			Spaced = if Trimmed = null then null else Text.Replace(Text.Replace(Trimmed, "_and_", " & "), "_", " "),
+			Result = if Spaced = null or Spaced = "" then null else Text.Proper(Spaced)
+		in
+			Result
+	lineageTag: 5ce650a1-6265-4f7e-bb5e-91fe7a27f531
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// Reusable CSV loader: UTF-8, quoted fields (review comments contain line breaks), BOM removed from headers, empty strings to null.
+expression fx_LoadCsv =
+		(fileName as text) as table =>
+		let
+			Source = Csv.Document(File.Contents(DataFolder & fileName), [Delimiter = ",", Encoding = 65001, QuoteStyle = QuoteStyle.Csv]),
+			PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars = true]),
+			CleanHeaders = Table.TransformColumnNames(PromotedHeaders, each Text.Trim(Text.Replace(_, Character.FromNumber(65279), ""))),
+			BlanksToNull = Table.ReplaceValue(CleanHeaders, "", null, Replacer.ReplaceValue, Table.ColumnNames(CleanHeaders))
+		in
+			BlanksToNull
+	lineageTag: 555a31b4-c270-48ed-9763-9efeee24188b
+	queryGroup: Functions
+
+	annotation PBI_ResultType = Function
+
+/// Brazilian states with full names and IBGE macro-regions (used by Customer and Seller).
+expression BrazilStates =
+		let
+			Source = #table(
+				type table [#"State Code" = text, #"State Name" = text, Region = text],
+				{
+					{"AC", "Acre", "North"}, {"AM", "Amazonas", "North"}, {"AP", "Amapá", "North"},
+					{"PA", "Pará", "North"}, {"RO", "Rondônia", "North"}, {"RR", "Roraima", "North"},
+					{"TO", "Tocantins", "North"},
+					{"AL", "Alagoas", "Northeast"}, {"BA", "Bahia", "Northeast"}, {"CE", "Ceará", "Northeast"},
+					{"MA", "Maranhão", "Northeast"}, {"PB", "Paraíba", "Northeast"}, {"PE", "Pernambuco", "Northeast"},
+					{"PI", "Piauí", "Northeast"}, {"RN", "Rio Grande do Norte", "Northeast"}, {"SE", "Sergipe", "Northeast"},
+					{"DF", "Distrito Federal", "Central-West"}, {"GO", "Goiás", "Central-West"},
+					{"MS", "Mato Grosso do Sul", "Central-West"}, {"MT", "Mato Grosso", "Central-West"},
+					{"ES", "Espírito Santo", "Southeast"}, {"MG", "Minas Gerais", "Southeast"},
+					{"RJ", "Rio de Janeiro", "Southeast"}, {"SP", "São Paulo", "Southeast"},
+					{"PR", "Paraná", "South"}, {"RS", "Rio Grande do Sul", "South"}, {"SC", "Santa Catarina", "South"}
+				}
+			)
+		in
+			Source
+	lineageTag: a52d740f-4775-4a7f-9617-a3bd2adcb590
+	queryGroup: Staging
+
+	annotation PBI_ResultType = Table
+
+/// English category names (typos fixed, 2 missing translations added) mapped to 12 business category groups.
+expression stg_CategoryTranslation =
+		let
+			Source = fx_LoadCsv("product_category_name_translation.csv"),
+			MissingTranslations = #table(
+				{"product_category_name", "product_category_name_english"},
+				{{"pc_gamer", "pc_gamer"}, {"portateis_cozinha_e_preparadores_de_alimentos", "portable_kitchen_appliances"}}
+			),
+			Combined = Table.Combine({Source, MissingTranslations}),
+			GroupMap = #table(
+				{"Group", "Categories"},
+				{
+					{"Home & Furniture", {"bed_bath_table", "furniture_decor", "housewares", "home_confort", "home_comfort_2", "furniture_living_room", "furniture_bedroom", "furniture_mattress_and_upholstery", "kitchen_dining_laundry_garden_furniture", "office_furniture", "la_cuisine", "christmas_supplies", "party_supplies", "flowers"}},
+					{"Electronics & Tech", {"computers_accessories", "telephony", "fixed_telephony", "electronics", "computers", "tablets_printing_image", "consoles_games", "audio", "cine_photo", "pc_gamer"}},
+					{"Home Appliances", {"home_appliances", "home_appliances_2", "small_appliances", "small_appliances_home_oven_and_coffee", "air_conditioning", "portable_kitchen_appliances"}},
+					{"Health & Beauty", {"health_beauty", "perfumery", "diapers_and_hygiene"}},
+					{"Fashion & Accessories", {"watches_gifts", "fashion_bags_accessories", "fashion_shoes", "fashion_male_clothing", "fashio_female_clothing", "fashion_underwear_beach", "fashion_sport", "fashion_childrens_clothes", "luggage_accessories"}},
+					{"Sports & Leisure", {"sports_leisure", "musical_instruments", "art", "arts_and_craftmanship", "cool_stuff"}},
+					{"Toys & Baby", {"toys", "baby"}},
+					{"Construction & Garden", {"garden_tools", "construction_tools_construction", "costruction_tools_garden", "costruction_tools_tools", "construction_tools_lights", "construction_tools_safety", "home_construction", "signaling_and_security"}},
+					{"Auto & Industry", {"auto", "agro_industry_and_commerce", "industry_commerce_and_business"}},
+					{"Food & Drinks", {"food_drink", "food", "drinks"}},
+					{"Books, Media & Stationery", {"stationery", "books_technical", "books_general_interest", "books_imported", "music", "cds_dvds_musicals", "dvds_blu_ray"}},
+					{"Pets & Other", {"pet_shop", "market_place", "security_and_services"}}
+				}
+			),
+			ExpandedMap = Table.ExpandListColumn(GroupMap, "Categories"),
+			MergedGroup = Table.NestedJoin(Combined, {"product_category_name_english"}, ExpandedMap, {"Categories"}, "G", JoinKind.LeftOuter),
+			ExpandedGroup = Table.ExpandTableColumn(MergedGroup, "G", {"Group"}, {"Category Group"}),
+			Typos = {{"costruction", "construction"}, {"fashio_", "fashion_"}, {"confort", "comfort"}, {"_2", ""}},
+			FixedTypos = Table.AddColumn(ExpandedGroup, "English", each List.Accumulate(Typos, [product_category_name_english], (state, pair) => Text.Replace(state, pair{0}, pair{1})), type text),
+			AddedCategory = Table.AddColumn(FixedTypos, "Category", each fx_CleanText([English]), type text),
+			Result = Table.SelectColumns(AddedCategory, {"product_category_name", "Category", "Category Group"})
+		in
+			Result
+	lineageTag: b9a91b1d-1027-471e-922d-02372a8d1c4e
+	queryGroup: Staging
+
+	annotation PBI_ResultType = Table
+
+expression stg_Customers =
+		let
+			Source = fx_LoadCsv("olist_customers_dataset.csv"),
+			ChangedTypes = Table.TransformColumnTypes(Source, {{"customer_id", type text}, {"customer_unique_id", type text}, {"customer_zip_code_prefix", type text}, {"customer_city", type text}, {"customer_state", type text}})
+		in
+			ChangedTypes
+	lineageTag: 8ea240d6-a858-436b-8743-8fb8ba461ad7
+	queryGroup: Staging
+
+	annotation PBI_ResultType = Table
+
+/// Order header: typed, limited to complete months, delivery metrics derived, surrogate keys added.
+expression stg_Orders =
+		let
+			Source = fx_LoadCsv("olist_orders_dataset.csv"),
+			ChangedTypes = Table.TransformColumnTypes(Source, {
+				{"order_id", type text}, {"customer_id", type text}, {"order_status", type text},
+				{"order_purchase_timestamp", type datetime}, {"order_approved_at", type datetime},
+				{"order_delivered_carrier_date", type datetime}, {"order_delivered_customer_date", type datetime},
+				{"order_estimated_delivery_date", type datetime}}, "en-US"),
+			// Sep and Oct 2018 hold only 20 orders (mostly cancelled), so keep complete months up to Aug 2018
+			CompleteMonths = Table.SelectRows(ChangedTypes, each [order_purchase_timestamp] < #datetime(2018, 9, 1, 0, 0, 0)),
+			Sorted = Table.Sort(CompleteMonths, {{"order_purchase_timestamp", Order.Ascending}, {"order_id", Order.Ascending}}),
+			AddedOrderKey = Table.AddIndexColumn(Sorted, "Order Key", 1, 1, Int64.Type),
+			AddedOrderDate = Table.AddColumn(AddedOrderKey, "Order Date", each Date.From([order_purchase_timestamp]), type date),
+			AddedDeliveredDate = Table.AddColumn(AddedOrderDate, "Delivered Date", each Date.From([order_delivered_customer_date]), type nullable date),
+			AddedEstimatedDate = Table.AddColumn(AddedDeliveredDate, "Estimated Date", each Date.From([order_estimated_delivery_date]), type nullable date),
+			AddedStatus = Table.AddColumn(AddedEstimatedDate, "Order Status", each fx_CleanText([order_status]), type text),
+			AddedDeliveryDays = Table.AddColumn(AddedStatus, "Delivery Days", each if [order_delivered_customer_date] = null then null else Number.Round(Duration.TotalDays([order_delivered_customer_date] - [order_purchase_timestamp]), 1), type nullable number),
+			AddedDaysLate = Table.AddColumn(AddedDeliveryDays, "Days Late", each if [Delivered Date] = null or [Estimated Date] = null then null else Duration.Days([Delivered Date] - [Estimated Date]), Int64.Type),
+			AddedDeliveryStatus = Table.AddColumn(AddedDaysLate, "Delivery Status", each if [order_status] <> "delivered" or [Delivered Date] = null then "Not Delivered" else if [Days Late] > 0 then "Late" else "On Time", type text),
+			AddedDelayBucket = Table.AddColumn(AddedDeliveryStatus, "Delay Bucket", each
+				if [Delivery Status] = "Not Delivered" then "Not delivered"
+				else if [Days Late] <= -8 then "8+ days early"
+				else if [Days Late] <= -1 then "1-7 days early"
+				else if [Days Late] = 0 then "On the estimated day"
+				else if [Days Late] <= 3 then "1-3 days late"
+				else if [Days Late] <= 7 then "4-7 days late"
+				else if [Days Late] <= 14 then "8-14 days late"
+				else "15+ days late", type text),
+			AddedDelayOrder = Table.AddColumn(AddedDelayBucket, "Delay Bucket Order", each List.PositionOf({"8+ days early", "1-7 days early", "On the estimated day", "1-3 days late", "4-7 days late", "8-14 days late", "15+ days late", "Not delivered"}, [Delay Bucket]) + 1, Int64.Type),
+			// Olist issues a new customer_id per order; customer_unique_id identifies the real customer
+			MergedCustomerId = Table.NestedJoin(AddedDelayOrder, {"customer_id"}, stg_Customers, {"customer_id"}, "C", JoinKind.LeftOuter),
+			ExpandedCustomerId = Table.ExpandTableColumn(MergedCustomerId, "C", {"customer_unique_id"}),
+			RenamedCustomer = Table.RenameColumns(ExpandedCustomerId, {{"customer_unique_id", "Customer ID"}})
+		in
+			RenamedCustomer
+	lineageTag: af4a9944-e530-4373-bd09-8074638ef6ac
+	queryGroup: Staging
+
+	annotation PBI_ResultType = Table
+
+expression stg_Items =
+		let
+			Source = fx_LoadCsv("olist_order_items_dataset.csv"),
+			ChangedTypes = Table.TransformColumnTypes(Source, {
+				{"order_id", type text}, {"order_item_id", Int64.Type}, {"product_id", type text}, {"seller_id", type text},
+				{"shipping_limit_date", type datetime}, {"price", Currency.Type}, {"freight_value", Currency.Type}}, "en-US")
+		in
+			ChangedTypes
+	lineageTag: b438ad86-4620-43e4-98ec-6d8025a6db86
+	queryGroup: Staging
+
+	annotation PBI_ResultType = Table
+
+expression stg_ItemsByOrder =
+		let
+			Source = stg_Items,
+			Grouped = Table.Group(Source, {"order_id"}, {
+				{"Items", each Table.RowCount(_), Int64.Type},
+				{"Order Value", each List.Sum([price]), Currency.Type},
+				{"Order Freight", each List.Sum([freight_value]), Currency.Type}})
+		in
+			Grouped
+	lineageTag: b07d7370-afa9-4efd-8156-842bc229f2e1
+	queryGroup: Staging
+
+	annotation PBI_ResultType = Table
+
+/// 547 orders have more than one review, so scores are averaged to one value per order.
+expression stg_ReviewsByOrder =
+		let
+			Source = fx_LoadCsv("olist_order_reviews_dataset.csv"),
+			ChangedTypes = Table.TransformColumnTypes(Source, {{"review_id", type text}, {"order_id", type text}, {"review_score", Int64.Type}}, "en-US"),
+			Grouped = Table.Group(ChangedTypes, {"order_id"}, {
+				{"Review Score", each List.Average([review_score]), type nullable number},
+				{"Has Comment", each List.NonNullCount([review_comment_message]) > 0, type logical}})
+		in
+			Grouped
+	lineageTag: 8af330d9-00ac-43f5-8aac-dd33539477ce
+	queryGroup: Staging
+
+	annotation PBI_ResultType = Table
+
+/// One row per order: total paid, max installments and the payment type that covered the largest share.
+expression stg_PaymentsByOrder =
+		let
+			Source = fx_LoadCsv("olist_order_payments_dataset.csv"),
+			ChangedTypes = Table.TransformColumnTypes(Source, {{"order_id", type text}, {"payment_sequential", Int64.Type}, {"payment_type", type text}, {"payment_installments", Int64.Type}, {"payment_value", Currency.Type}}, "en-US"),
+			Grouped = Table.Group(ChangedTypes, {"order_id"}, {
+				{"Payment Value", each List.Sum([payment_value]), Currency.Type},
+				{"Installments", each List.Max([payment_installments]), Int64.Type},
+				{"Payment Type", each fx_CleanText(Table.Max(_, "payment_value")[payment_type]), type text}})
+		in
+			Grouped
+	lineageTag: 1cf5d7c1-4fc7-4266-ad8a-78d573c950b7
+	queryGroup: Staging
+
+	annotation PBI_ResultType = Table
+

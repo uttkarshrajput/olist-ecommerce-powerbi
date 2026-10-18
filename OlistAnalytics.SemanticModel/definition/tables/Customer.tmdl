@@ -1,0 +1,82 @@
+/// One row per real customer (customer_unique_id). Olist issues a new customer_id per order, so the raw table is deduplicated here.
+table Customer
+	lineageTag: a93e5a2b-7c91-4696-a116-0f6847a43d32
+
+	column 'Customer ID'
+		dataType: string
+		isKey
+		lineageTag: 2b45ff51-5dd1-43d8-ac45-4851acd76945
+		summarizeBy: none
+		sourceColumn: Customer ID
+
+	column City
+		dataType: string
+		lineageTag: 97c5df1b-b80d-405a-930f-2792d200d00f
+		summarizeBy: none
+		sourceColumn: City
+
+	column State
+		dataType: string
+		lineageTag: 9852b61c-4c98-4557-87f3-7e6472edbec3
+		summarizeBy: none
+		sourceColumn: State
+
+	column 'State Name'
+		dataType: string
+		lineageTag: 2256b054-69e6-457c-8397-137958ce1414
+		summarizeBy: none
+		sourceColumn: State Name
+
+	column Region
+		dataType: string
+		lineageTag: 846ed416-a301-4347-891f-9c5e979a6cc8
+		summarizeBy: none
+		sourceColumn: Region
+
+	column 'Lifetime Orders'
+		dataType: int64
+		formatString: 0
+		lineageTag: ac811130-863d-4abc-bbe2-7e5aca8f9a40
+		summarizeBy: none
+		sourceColumn: Lifetime Orders
+
+	column 'Customer Segment'
+		dataType: string
+		lineageTag: 068fa1b0-f09c-4669-b158-daf6317f5ef4
+		summarizeBy: none
+		sourceColumn: Customer Segment
+
+	hierarchy Geography
+		lineageTag: c1f40fcc-1e5b-4704-a192-1acff683a1d4
+
+		level Region
+			lineageTag: 9b0ec0f6-fc77-4711-9cbd-d9b551a9d967
+			column: Region
+
+		level 'State Name'
+			lineageTag: 399a6ffa-1726-4cfa-9649-13e47df13759
+			column: 'State Name'
+
+		level City
+			lineageTag: 4abfcba5-3e0b-4194-90c0-41b7cce5cc74
+			column: City
+
+	partition Customer = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+					Source = stg_Customers,
+					Grouped = Table.Group(Source, {"customer_unique_id"}, {
+						{"customer_city", each List.First([customer_city]), type text},
+						{"customer_state", each List.First([customer_state]), type text},
+						{"Lifetime Orders", each Table.RowCount(_), Int64.Type}}),
+					MergedStates = Table.NestedJoin(Grouped, {"customer_state"}, BrazilStates, {"State Code"}, "S", JoinKind.LeftOuter),
+					ExpandedStates = Table.ExpandTableColumn(MergedStates, "S", {"State Name", "Region"}),
+					AddedCity = Table.AddColumn(ExpandedStates, "City", each fx_CleanText([customer_city]), type text),
+					AddedSegment = Table.AddColumn(AddedCity, "Customer Segment", each if [Lifetime Orders] > 1 then "Repeat" else "One-time", type text),
+					Renamed = Table.RenameColumns(AddedSegment, {{"customer_unique_id", "Customer ID"}, {"customer_state", "State"}}),
+					Result = Table.SelectColumns(Renamed, {"Customer ID", "City", "State", "State Name", "Region", "Lifetime Orders", "Customer Segment"})
+				in
+					Result
+

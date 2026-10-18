@@ -1,0 +1,66 @@
+/// Marketplace sellers. Seller Code is the first 8 characters of the hashed ID (verified unique) for readable tables.
+table Seller
+	lineageTag: 8b70c962-fcb6-40e5-bf7e-b9e32c4e6022
+
+	column 'Seller Key'
+		dataType: int64
+		isHidden
+		formatString: 0
+		lineageTag: c7418ef9-a565-4c59-b224-7404fb7b8929
+		summarizeBy: none
+		sourceColumn: Seller Key
+
+	column 'Seller ID'
+		dataType: string
+		lineageTag: f47afd6c-2126-407b-98fa-87a33b3b317b
+		summarizeBy: none
+		sourceColumn: Seller ID
+
+	column 'Seller Code'
+		dataType: string
+		lineageTag: 13621bed-bb42-469c-871a-c72b1a661e73
+		summarizeBy: none
+		sourceColumn: Seller Code
+
+	column City
+		dataType: string
+		lineageTag: 75a16046-e1a3-4f55-b963-6c9f5f185681
+		summarizeBy: none
+		sourceColumn: City
+
+	column State
+		dataType: string
+		lineageTag: 47960344-da47-4f58-8704-0d864d6a7408
+		summarizeBy: none
+		sourceColumn: State
+
+	column 'State Name'
+		dataType: string
+		lineageTag: f1ebf047-0093-4dd8-8020-5b9d591a3de8
+		summarizeBy: none
+		sourceColumn: State Name
+
+	column Region
+		dataType: string
+		lineageTag: 960dc309-757e-49e9-8b40-47a4ccd5f4e9
+		summarizeBy: none
+		sourceColumn: Region
+
+	partition Seller = m
+		mode: import
+		queryGroup: Dimensions
+		source =
+				let
+					Source = fx_LoadCsv("olist_sellers_dataset.csv"),
+					ChangedTypes = Table.TransformColumnTypes(Source, {{"seller_id", type text}, {"seller_zip_code_prefix", type text}, {"seller_city", type text}, {"seller_state", type text}}),
+					Sorted = Table.Sort(ChangedTypes, {{"seller_id", Order.Ascending}}),
+					AddedKey = Table.AddIndexColumn(Sorted, "Seller Key", 1, 1, Int64.Type),
+					AddedCode = Table.AddColumn(AddedKey, "Seller Code", each Text.Upper(Text.Start([seller_id], 8)), type text),
+					AddedCity = Table.AddColumn(AddedCode, "City", each fx_CleanText([seller_city]), type text),
+					MergedStates = Table.NestedJoin(AddedCity, {"seller_state"}, BrazilStates, {"State Code"}, "S", JoinKind.LeftOuter),
+					ExpandedStates = Table.ExpandTableColumn(MergedStates, "S", {"State Name", "Region"}),
+					Renamed = Table.RenameColumns(ExpandedStates, {{"seller_id", "Seller ID"}, {"seller_state", "State"}}),
+					Result = Table.SelectColumns(Renamed, {"Seller Key", "Seller ID", "Seller Code", "City", "State", "State Name", "Region"})
+				in
+					Result
+

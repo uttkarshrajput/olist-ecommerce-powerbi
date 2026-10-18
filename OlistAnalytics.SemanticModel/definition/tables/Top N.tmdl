@@ -1,0 +1,23 @@
+/// Number of categories kept by the Top N chart.
+table 'Top N'
+	lineageTag: 302b5a62-dabb-4df4-92c5-9e5f60a9b292
+
+	measure 'Top N Value' = SELECTEDVALUE ( 'Top N'[Top N], 10 )
+		formatString: 0
+		lineageTag: 4e5d5caa-f193-4bfa-b12c-dc85d161bafa
+
+	column 'Top N'
+		formatString: 0
+		lineageTag: b13df22b-254c-4190-9561-243e2dca777e
+		summarizeBy: none
+		sourceColumn: [Value]
+
+		extendedProperty ParameterMetadata =
+				{
+				  "version": 0
+				}
+
+	partition 'Top N' = calculated
+		mode: import
+		source = GENERATESERIES ( 3, 20, 1 )
+

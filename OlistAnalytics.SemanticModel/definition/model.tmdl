@@ -1,0 +1,64 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	discourageImplicitMeasures
+	sourceQueryCulture: en-US
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+queryGroup Parameters
+
+	annotation PBI_QueryGroupOrder = 0
+
+queryGroup Functions
+
+	annotation PBI_QueryGroupOrder = 1
+
+queryGroup Staging
+
+	annotation PBI_QueryGroupOrder = 2
+
+queryGroup Dimensions
+
+	annotation PBI_QueryGroupOrder = 3
+
+queryGroup Facts
+
+	annotation PBI_QueryGroupOrder = 4
+
+queryGroup Measures
+
+	annotation PBI_QueryGroupOrder = 5
+
+queryGroup Security
+
+	annotation PBI_QueryGroupOrder = 6
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_QueryOrder = ["DataFolder","fx_CleanText","fx_LoadCsv","BrazilStates","stg_CategoryTranslation","stg_Customers","stg_Orders","stg_Items","stg_ItemsByOrder","stg_ReviewsByOrder","stg_PaymentsByOrder","Date","Customer","Product","Seller","Sales","Orders","_Measures","Security"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table _Measures
+ref table Sales
+ref table Orders
+ref table Date
+ref table Customer
+ref table Product
+ref table Seller
+ref table 'Time Intelligence'
+ref table 'Metric Selector'
+ref table 'Breakdown Selector'
+ref table 'Top N'
+ref table 'Late Orders Fixed %'
+ref table 'Growth Target %'
+ref table Security
+
+ref role 'Regional Manager (Dynamic)'
+ref role 'Southeast Region'
+ref role 'North and Northeast'
+
+ref cultureInfo en-US
+
