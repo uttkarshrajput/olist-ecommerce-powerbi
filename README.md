@@ -2,6 +2,8 @@
 
 An end-to-end Power BI project on **99K real orders** from Olist, a Brazilian e-commerce marketplace (Sep 2016 to Aug 2018). Raw CSV files are cleaned in Power Query, modelled as a star schema with two fact tables, analysed with **87 DAX measures**, and presented in a 6-page interactive report. Saved as a **Power BI Project (PBIP)**, so the model (TMDL) and the report (PBIR) are plain text and version-controlled.
 
+**Project walkthrough (11 slides):** [docs/Olist_PowerBI_Project_Walkthrough.pdf](docs/Olist_PowerBI_Project_Walkthrough.pdf) · **LinkedIn post:** [read it here](https://www.linkedin.com/feed/update/urn:li:activity:7517734798321233920/)
+
 ![Executive overview](docs/screenshots/01_executive_overview.png)
 
 ## Key findings
@@ -141,7 +143,7 @@ olist-ecommerce-powerbi/
 ├── OlistAnalytics.SemanticModel/      # TMDL: tables, measures, relationships, roles, Power Query
 ├── OlistAnalytics.Report/             # PBIR: pages, visuals, bookmarks, theme
 ├── data/raw/                          # Olist CSV files (CC BY-NC-SA 4.0)
-└── docs/screenshots/
+└── docs/                              # screenshots + project walkthrough PDF
 ```
 
 ## Data source and licence
